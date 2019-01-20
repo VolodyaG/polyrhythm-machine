@@ -1,44 +1,69 @@
-var arrow;
+var color4 = '#86D800';
+var color8 = '#FFAB44';
+var color16 = '#9047DC';
 
-function drawCircle() {
-    var canvas = SVG("metronome").size(640, 480);
+var sizeX = 640;
+var sizeY = 480;
+var centerX = sizeX / 2;
+var centerY = sizeY / 2;
+
+var canvas = SVG("metronome").size(sizeX, sizeY);
+
+var arrowLine;
+var arrow = _createArrowGroup();
+
+function drawBeatCircle(position, timeSignature) {
+    var beatsCount = timeSignature[0];
+
+    var diameter = _calculateBeatCircleDiameter(position);
+    var radius = diameter / 2;
+
+    canvas.circle(diameter)
+        .center(centerX, centerY)
+        .attr({fill: "none", "stroke-width": 2});
+
+    var circleStartY = centerY - radius;
+
+    _createBeats(beatsCount, circleStartY);
+    _updateArrow(circleStartY);
+}
+
+function startAnimation(bpm) {
+    var time =  4 * 60 * 1000 / bpm;
+    arrow.animate(time, '-').rotate(360, 320, 240).loop();
+}
+
+function stopAnimation() {
+    arrow.finish();
+}
+
+// position - relative position of the circle: -1,0,1,2 where 0 is the first central circle
+function _calculateBeatCircleDiameter(position) {
+    var maxDiameter = Math.min(sizeX, sizeY) - 20;
+    var minDiamener = maxDiameter / 2;
+
+    var centralCircle = (maxDiameter +  minDiamener) / 2;
+
+    var circleStep = (maxDiameter - centralCircle) / 2; // Assume we could add only 2 circles in each direction for now
+
+    return centralCircle + (position * circleStep);
+}
+
+function _createBeats(mainBeatsCount, circleStartY) {
+    var angle4th = 360 / mainBeatsCount; // In code 4th it is time division. For 3/4 - 4, for 6/8 - 8;
+    var angle8th = angle4th / 2;
+    var angle16th = angle8th / 2;
+
     var angle = 0;
-
-    var color4 = '#86D800';
-    var color8 = '#FFAB44';
-    var color16 = '#9047DC';
-
-    var angle4 = 360 / 4;
-    var angle8 = 360 / 8;
-    var angle16 = 360 / 16;
-
-    canvas.circle(210 * 2).center(320, 240).attr({fill: "none", "stroke-width": 2});
-
     while (angle < 360) {
-        var transform = "r" + angle + " 320 240";
-        var color;
-        var radius;
+        var beatProps = _getBeatButtonProps(angle, angle4th, angle8th, angle16th);
 
-        if (angle % angle4 === 0) {
-            color = color4;
-            radius = 20;
-        } else if (angle % angle8 === 0) {
-            color = color8;
-            radius = 15;
-        } else if (angle % angle16 === 0) {
-            color = color16;
-            radius = 10;
-        } else {
-            color = '#000000';
-            radius = 45;
-        }
-        canvas.circle(radius * 2)
-            .center(320, 240 - 210)
-            .rotate(angle, 320, 240)
-            .fill(color).opacity(0.4)
-            .stroke({color: color})
+        canvas.circle(beatProps.radius * 2)
+            .center(centerX, circleStartY)
+            .rotate(angle, centerX, centerY)
+            .fill(beatProps.color).opacity(0.4)
+            .stroke({color: beatProps.color})
             .click(function () {
-                this.remember('oldOpacity', 1);
                 this.opacity(1);
             })
             .mouseover(function () {
@@ -49,23 +74,50 @@ function drawCircle() {
                 // this.animate(500).opacity(this.remember('oldOpacity'));
             });
 
-        angle += angle16;
+        angle += angle16th;
     }
-
-    arrow = canvas.group();
-
-    arrow.add(canvas.line(320, 240, 320, 30).attr({fill: "none", "stroke-width": 2}));
-
-    arrow.add(canvas.circle(5 * 2).center(320, 30).attr({fill: "#410182", "stroke-width": 2}));
-    arrow.add(canvas.circle(7 * 2).center(320, 240).attr({fill: "#410182", "stroke-width": 2}));
-    arrow.stroke({color: '#410182'});
-};
-
-function startAnimation() {
-    var bpm = 1000 * 4 * 60 / 80;
-    arrow.animate(bpm, '-').rotate(360, 320, 240).loop();
 }
 
-function stopAnimation() {
-    arrow.finish();
+function _getBeatButtonProps(angle, angle4th, angle8th, angle16th) {
+    var color;
+    var radius;
+
+    if (angle % angle4th === 0) {
+        color = color4;
+        radius = 20;
+    } else if (angle % angle8th === 0) {
+        color = color8;
+        radius = 15;
+    } else if (angle % angle16th === 0) {
+        color = color16;
+        radius = 10;
+    } else {
+        color = '#000000';
+        radius = 45;
+    }
+
+    return {
+        color: color,
+        radius: radius,
+    }
+}
+function _createArrowGroup() {
+    var arrow = canvas.group();
+
+    arrowLine = canvas.line(centerX, centerY, centerX, centerY).attr({fill: "none", "stroke-width": 2});
+    arrow.add(arrowLine);
+    arrow.add(canvas.circle(7 * 2).center(centerX, centerY).attr({fill: "#410182", "stroke-width": 2}));
+
+    arrow.stroke({color: '#ff35f7'});
+    return arrow;
+
+}
+
+function _updateArrow(circleStartY) {
+    if (arrowLine.attr('y2') > circleStartY) {
+        arrowLine.plot(centerX, centerY, centerX, circleStartY);
+    }
+
+    arrow.add(canvas.circle(5 * 2).center(centerX, circleStartY).attr({fill: "#410182", "stroke-width": 2}));
+    arrow.front();
 }

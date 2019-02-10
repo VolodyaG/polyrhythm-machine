@@ -8,6 +8,8 @@ var sampler = new Tone.Sampler({
     "A3": "./samples/bongo_2.wav",
 }).toMaster();
 
+var part;
+
 
 function playMusic(bpm, basePulse, additionalPulse) {
     Tone.Transport.bpm.value = additionalPulse ? additionalPulse[0] * bpm : bpm;
@@ -15,7 +17,7 @@ function playMusic(bpm, basePulse, additionalPulse) {
 
     var notes = generateToneJsNotes();
 
-    var part = new Tone.Part(function (time, value) {
+    part = new Tone.Part(function (time, value) {
         sampler.triggerAttack(value.note, time);
     }, notes).start(0);
 
@@ -25,6 +27,7 @@ function playMusic(bpm, basePulse, additionalPulse) {
 }
 
 function stopMusic() {
+    part.stop();
     Tone.Transport.stop();
 }
 
@@ -44,42 +47,29 @@ function getToneJsTimeSignature(basePulse, additionalPulse) {
     return timeSignature;
 }
 
-function generateToneJsNotes(beats) {
-    var beat1 = {
-        note: 'C3',
-        timeSignature: [4, 4],
-        beatInTicks: [0, 24, 48, 72],
-    };
+function generateToneJsNotes() {
+    var partEvents = [];
 
-    var beat2 = {
-        note: 'A3',
-        timeSignature: [3, 4],
-        beatInTicks: [0, 24, 48],
-    };
+    beatsState[0].note = 'C3';
+    beatsState[-2].note = 'A3';
 
-    var beat1Events = generateTonejsPartEventsFromBeat(beat1);
-    var beat2Events = generateTonejsPartEventsFromBeat(beat2);
-    return beat1Events.concat(beat2Events);
+    for (var beatId in beatsState) {
+        var beat = beatsState[beatId];
+        if (beat.ticksToPlay.length > 0) {
+            partEvents = partEvents.concat(generateTonejsPartEventsFromBeat(beat));
+        }
+    }
+
+    return partEvents;
 }
 
 function generateTonejsPartEventsFromBeat(beat) {
-    var notes = [];
+    var multiplySignatureNumberForBeatPulse = getMultiplySignatureNumberForBeatPulse(beat.timeSignature);
 
-    for (var i = 0; i < beat.beatInTicks.length; i++) {
-        var convertedBeatTimeInTicks = beat.beatInTicks[i] * getMultiplySignatureNumberForBeatPulse(beat.timeSignature);
-        var toneJsTime;
-
-        var currentBeat = Math.trunc(convertedBeatTimeInTicks / 24);
-        toneJsTime = '0:' + currentBeat;
-
-        var subdivisionOfBeat = convertedBeatTimeInTicks - (currentBeat * 24);
-
-        if (subdivisionOfBeat !== 0) {
-            toneJsTime += ':' + subdivisionOfBeat;
-        }
-
-        notes.push({"time": toneJsTime, "note": beat.note});
-    }
+    var notes = beat.ticksToPlay.map(function (tick) {
+        var convertedBeatTimeInTicks = tick * multiplySignatureNumberForBeatPulse;
+        return {"time": convertedBeatTimeInTicks + 'i', "note": beat.note};
+    });
 
     return notes;
 }

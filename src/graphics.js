@@ -13,7 +13,10 @@ var arrowLine;
 var arrow = _createArrowGroup();
 
 function drawBeatCircle(position, timeSignature) {
-    var beatsCount = timeSignature[0];
+    beatsState[position] = {
+        ticksToPlay: [],
+        timeSignature: timeSignature,
+    };
 
     var diameter = _calculateBeatCircleDiameter(position);
     var radius = diameter / 2;
@@ -24,12 +27,12 @@ function drawBeatCircle(position, timeSignature) {
 
     var circleStartY = centerY - radius;
 
-    _createBeats(beatsCount, circleStartY);
+    _createBeats(position, timeSignature, circleStartY);
     _updateArrow(circleStartY);
 }
 
 function startAnimation(bpm) {
-    var time =  4 * 60 * 1000 / bpm;
+    var time = 4 * 60 * 1000 / bpm;
     arrow.animate(time, '-').rotate(360, 320, 240).loop();
 }
 
@@ -40,60 +43,72 @@ function stopAnimation() {
 // position - relative position of the circle: -1,0,1,2 where 0 is the first central circle
 function _calculateBeatCircleDiameter(position) {
     var maxDiameter = Math.min(sizeX, sizeY) - 20;
-    var minDiamener = maxDiameter / 2;
+    var minDiameter = maxDiameter / 2;
 
-    var centralCircle = (maxDiameter +  minDiamener) / 2;
+    var centralCircle = (maxDiameter + minDiameter) / 2;
 
     var circleStep = (maxDiameter - centralCircle) / 2; // Assume we could add only 2 circles in each direction for now
 
     return centralCircle + (position * circleStep);
 }
 
-function _createBeats(mainBeatsCount, circleStartY) {
-    var angle4th = 360 / mainBeatsCount; // In code 4th it is time division. For 3/4 - 4, for 6/8 - 8;
-    var angle8th = angle4th / 2;
-    var angle16th = angle8th / 2;
+function _createBeats(position, timeSignature, circleStartY) {
+    var beatsCount = timeSignature[0];
+    var ticksInCircle = (timeSignature[0] / (timeSignature[1] / 4)) * 24;
 
-    var angle = 0;
-    while (angle < 360) {
-        var beatProps = _getBeatButtonProps(angle, angle4th, angle8th, angle16th);
+    var oneCircleStep = 360 / ticksInCircle;
+
+    for (var currentTick = 0; currentTick < ticksInCircle; currentTick++) {
+        var beatProps = _getBeatButtonProps(currentTick, timeSignature);
+
+        if (!beatProps) {
+            continue;
+        }
+
+        var currentAngle = oneCircleStep * currentTick;
 
         canvas.circle(beatProps.radius * 2)
             .center(centerX, circleStartY)
-            .rotate(angle, centerX, centerY)
-            .fill(beatProps.color).opacity(0.4)
-            .stroke({color: beatProps.color})
+            .rotate(currentAngle, centerX, centerY)
+            .fill(beatProps.color).opacity(0.5)
+            .stroke({fill: beatProps.color, width: 2, color: '#ffffff'})
+            .remember({beatTick: currentTick, isChosen: false, beatId: position})
             .click(function () {
-                this.opacity(1);
-            })
-            .mouseover(function () {
-                // this.remember('oldOpacity', this.opacity());
-                // this.animate(500).opacity(1);
-            })
-            .mouseout(function () {
-                // this.animate(500).opacity(this.remember('oldOpacity'));
-            });
+                var isBeatChosenToPlayNow = !this.remember('isChosen');
+                this.remember('isChosen', isBeatChosenToPlayNow);
+                this.opacity(isBeatChosenToPlayNow ? 1 : 0.5);
 
-        angle += angle16th;
+                var beatState = beatsState[this.remember('beatId')];
+                var beatTick = this.remember('beatTick');
+
+                if (isBeatChosenToPlayNow) {
+                    beatState.ticksToPlay.push(beatTick);
+                } else {
+                    beatState.ticksToPlay = beatState.ticksToPlay.filter(function (value) {
+                        return value !== beatTick
+                    });
+                }
+            });
     }
 }
 
-function _getBeatButtonProps(angle, angle4th, angle8th, angle16th) {
+function _getBeatButtonProps(currentTick, timeSignature) {
     var color;
     var radius;
 
-    if (angle % angle4th === 0) {
+    var quaterNotesDimension = timeSignature[1] / 4; // How much 4th notes divided. e.g. for 4/4 = 1, 4/16 = 4
+
+    if (quaterNotesDimension === 1 && currentTick % 24 === 0) {
         color = color4;
-        radius = 20;
-    } else if (angle % angle8th === 0) {
-        color = color8;
         radius = 15;
-    } else if (angle % angle16th === 0) {
+    } else if (quaterNotesDimension <= 2 && currentTick % 12 === 0) {
+        color = color8;
+        radius = 13;
+    } else if (quaterNotesDimension <= 4 && currentTick % 6 === 0) {
         color = color16;
-        radius = 10;
+        radius = 11;
     } else {
-        color = '#000000';
-        radius = 45;
+        return;
     }
 
     return {
@@ -101,6 +116,7 @@ function _getBeatButtonProps(angle, angle4th, angle8th, angle16th) {
         radius: radius,
     }
 }
+
 function _createArrowGroup() {
     var arrow = canvas.group();
 
@@ -120,4 +136,9 @@ function _updateArrow(circleStartY) {
 
     arrow.add(canvas.circle(5 * 2).center(centerX, circleStartY).attr({fill: "#410182", "stroke-width": 2}));
     arrow.front();
+}
+
+function convertToFourBeatTimeSignature(pulse) {
+    var fourBeatsPulse = pulse[0] / (pulse[1] / 4);
+    return [fourBeatsPulse, pulse[1]]
 }

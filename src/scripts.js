@@ -4,8 +4,8 @@
     drawBeatCircle(0, [4, 4]);
     drawBeatCircle(-2, [3, 4]);
 
-    Nexus.colors.accent = "#D4EFFE";
-    Nexus.colors.fill = "#42A0D7";
+    Nexus.colors.accent = "#42A0D7";
+    Nexus.colors.fill = "#A0D8F9";
 
     var playButton = new Nexus.TextButton('#playButton', {
         'size': [150, 50],
@@ -24,6 +24,7 @@
 
     playButton.on('change', function (isPlaying) {
         if (isPlaying) {
+            console.log(JSON.stringify(beatsState));
             startAnimation(bpm.value);
             playMusic(bpm.value, [4, 4], [3, 4]);
         } else {

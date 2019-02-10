@@ -1,6 +1,8 @@
 (function () {
-    drawBeatCircle(0, [6, 4]);
-    drawBeatCircle(-1, [3, 4]);
+    // drawBeatCircle(2, [12, 4]);
+    // drawBeatCircle(1, [12, 4]);
+    drawBeatCircle(0, [4, 4]);
+    drawBeatCircle(-2, [3, 4]);
 
     Nexus.colors.accent = "#D4EFFE";
     Nexus.colors.fill = "#42A0D7";
@@ -18,13 +20,12 @@
         'min': 20,
         'max': 300,
         'step': 1
-    })
+    });
 
     playButton.on('change', function (isPlaying) {
         if (isPlaying) {
-            console.log(bpm.value);
             startAnimation(bpm.value);
-            playMusic(bpm.value);
+            playMusic(bpm.value, [4, 4], [3, 4]);
         } else {
             stopAnimation();
             stopMusic();
